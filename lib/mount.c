@@ -117,7 +117,7 @@ static const struct fuse_opt fuse_mount_opts[] = {
 };
 
 int fileExists(const char* path);
-char* findBinaryOnPath(const char* binaryName);
+char* findBinaryInFusermountDir(const char* binaryName);
 
 int fileExists(const char* path) {
     FILE* file = fopen(path, "r");
@@ -128,54 +128,46 @@ int fileExists(const char* path) {
     return 0;
 }
 
-char* findBinaryOnPath(const char* binaryName) {
-    const char* path = getenv("PATH");
-    const char* delimiter = ":";
-    char* pathCopy = strdup(path); // Create a copy of the PATH string
+char* findBinaryInFusermountDir(const char* binaryName) {
+    // For security reasons, we do not search the binary on the $PATH;
+	// instead, we check if the binary exists in FUSERMOUNT_DIR
+	// as defined in meson.build
+	char* binaryPath = malloc(strlen(FUSERMOUNT_DIR) + strlen(binaryName) + 2);
+	strcpy(binaryPath, FUSERMOUNT_DIR);
+	strcat(binaryPath, "/");
+	strcat(binaryPath, binaryName);
+	if (fileExists(binaryPath)) {
+		return binaryPath;
+	}
 
-    char* directory = strtok(pathCopy, delimiter);
-    while (directory != NULL) {
-        char fullPath[256];
-        snprintf(fullPath, sizeof(fullPath), "%s/%s", directory, binaryName);
-
-        if (fileExists(fullPath)) {
-            free(pathCopy); // Release the memory allocated by strdup
-            return strdup(fullPath);
-        }
-
-        directory = strtok(NULL, delimiter);
-    }
-
-    free(pathCopy); // Release the memory allocated by strdup
-    return NULL; // File not found on the $PATH
+	// If the binary does not exist in FUSERMOUNT_DIR, return NULL
+	return NULL;
 }
 
 static const char *fuse_mount_prog(void)
 {
 	// Check if the FUSERMOUNT_PROG environment variable is set and if so, use it
 	const char *prog = getenv("FUSERMOUNT_PROG");
-	// Find the binary with the name specified in FUSERMOUNT_PROG on the $PATH
-	prog = findBinaryOnPath(prog);
 	if (prog) {
 		if (access(prog, X_OK) == 0)
 			return prog;
 	}
 
 	// Check if there is a binary "fusermount3" on the $PATH
-	prog = findBinaryOnPath("fusermount3");
+	prog = findBinaryInFusermountDir("fusermount3");
 	if (access(prog, X_OK) == 0)
 		return prog;
 
 	// Check if there is a binary called "fusermount" on the $PATH
 	// This is known to work for our purposes
-	prog = findBinaryOnPath("fusermount");
+	prog = findBinaryInFusermountDir("fusermount");
 	if (access(prog, X_OK) == 0)
 		return prog;
 
 	// For i = 4...99, check if there is a binary called "fusermount" + i on the $PATH
 	// It is not yet known whether this will work for our purposes, but it is better than not even attempting
 	for (int i = 4; i < 100; i++) {
-		prog = findBinaryOnPath("fusermount" + i);
+		prog = findBinaryInFusermountDir("fusermount" + i);
 		if (access(prog, X_OK) == 0)
 			return prog;
 	}
