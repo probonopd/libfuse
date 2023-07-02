@@ -153,18 +153,18 @@ static const char *fuse_mount_prog(void)
 			return prog;
 	}
 
-	// Check if there is a binary "fusermount3" on the $PATH
+	// Check if there is a binary "fusermount3"
 	prog = findBinaryInFusermountDir("fusermount3");
 	if (access(prog, X_OK) == 0)
 		return prog;
 
-	// Check if there is a binary called "fusermount" on the $PATH
+	// Check if there is a binary called "fusermount"
 	// This is known to work for our purposes
 	prog = findBinaryInFusermountDir("fusermount");
 	if (access(prog, X_OK) == 0)
 		return prog;
 
-	// For i = 4...99, check if there is a binary called "fusermount" + i on the $PATH
+	// For i = 4...99, check if there is a binary called "fusermount" + i
 	// It is not yet known whether this will work for our purposes, but it is better than not even attempting
 	for (int i = 4; i < 100; i++) {
 		prog = findBinaryInFusermountDir("fusermount" + i);
